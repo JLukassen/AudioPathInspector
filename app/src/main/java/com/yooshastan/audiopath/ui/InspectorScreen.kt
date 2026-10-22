@@ -19,7 +19,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -69,9 +71,11 @@ private val Amber = Color(0xFFFFC586)
 @Composable
 fun InspectorScreen(
     snapshot: Snapshot?, access: AccessState, toneResult: String, rawDump: String,
+    rootReport: String, rootScanning: Boolean,
     baseline: DiagnosticBaseline?,
     status: String, collecting: Boolean, playing: Boolean,
     onRefresh: () -> Unit, onPermission: () -> Unit, onCollect: () -> Unit,
+    onRootCollect: () -> Unit,
     onPlayTone: () -> Unit, onSharePublic: () -> Unit, onShareRaw: () -> Unit,
     onSaveBaseline: () -> Unit, onClearBaseline: () -> Unit
 ) {
@@ -131,7 +135,8 @@ fun InspectorScreen(
                     0 -> PathPanel(snapshot, rawDump.isNotBlank(), hardware, toneResult, playing, onPlayTone)
                     1 -> DevicesPanel(snapshot)
                     2 -> SettingsPanel(snapshot)
-                    3 -> HardwarePanel(access, hardware, inventory, collecting, onPermission, onCollect)
+                    3 -> HardwarePanel(access, hardware, inventory, collecting, rootScanning, rootReport,
+                        onPermission, onCollect, onRootCollect)
                     4 -> ComparePanel(snapshot, rawDump, inventory, baseline, status, onSaveBaseline, onClearBaseline)
                     5 -> DiagnosticPanel(snapshot, access, status, collecting, rawDump,
                         onPermission, onCollect, onSharePublic, onShareRaw)
@@ -279,9 +284,11 @@ private fun SettingCard(fact: AudioFact) {
 @Composable
 private fun HardwarePanel(
     access: AccessState, sections: List<HardwareSection>, inventory: List<InventoryEntry>, collecting: Boolean,
-    onPermission: () -> Unit, onCollect: () -> Unit
+    rootScanning: Boolean, rootReport: String,
+    onPermission: () -> Unit, onCollect: () -> Unit, onRootCollect: () -> Unit
 ) {
     var query by remember { mutableStateOf("") }
+    var showRootConfirmation by remember { mutableStateOf(false) }
     SectionTitle("HARDWARE INSPECTION", "ALSA and vendor HAL")
     Text("Read-only discovery via Shizuku. Available metadata is not proof of the DAC's actual output sample rate or DSP signal path.",
         fontSize = 12.sp, color = DimText)
@@ -296,6 +303,40 @@ private fun HardwarePanel(
                 Text(if (collecting) "Collecting…" else "Scan hardware (read only)")
             }
         }
+    }
+    PanelCard {
+        Text("TINYMIX · OPTIONAL ROOT ASSIST", color = Seafoam,
+            fontFamily = FontFamily.Monospace, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Text("For APatch, Magisk, or other supported su providers. This works even when Shizuku is running as ADB shell. It requests root only when you confirm below.",
+            color = DimText, fontSize = 12.sp)
+        Text("Read-only: scans mixer cards 0–3. Does not issue 'tinymix set', adjust gain, restart services, change permissions, or modify SELinux.",
+            color = DimText, fontSize = 12.sp)
+        if (access is AccessState.Ready && access.uid == 0) {
+            Text("Shizuku already has UID 0. The regular hardware scan can inspect Tinymix without another su prompt.",
+                color = Seafoam, fontSize = 11.sp)
+        }
+        OutlinedButton(onClick = { showRootConfirmation = true }, enabled = !collecting && !rootScanning) {
+            Text(if (rootScanning) "Root scan running…" else "Inspect mixers with root (read only)")
+        }
+        if (rootReport.isNotBlank()) {
+            val rootSection = HardwareReport.parse(rootReport).firstOrNull()
+            Text("Last root result: ${rootSection?.status ?: "UNKNOWN"}",
+                color = if (rootSection?.status == "OK") Seafoam else Amber, fontSize = 12.sp)
+            Text("If a root manager denied the request or Tinymix is not installed, no mixer values will be fabricated.",
+                color = DimText, fontSize = 11.sp)
+        }
+    }
+    if (showRootConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showRootConfirmation = false },
+            title = { Text("Grant temporary Tinymix inspection?") },
+            text = { Text("Your root manager may ask whether to grant Audio Path Inspector root access. This scan only lists mixer controls on cards 0–3. Vendor controls may reveal hardware details. Nothing is changed.") },
+            confirmButton = { TextButton(onClick = {
+                showRootConfirmation = false
+                onRootCollect()
+            }) { Text("Request root scan") } },
+            dismissButton = { TextButton(onClick = { showRootConfirmation = false }) { Text("Cancel") } }
+        )
     }
     if (sections.isEmpty()) {
         PanelCard {
