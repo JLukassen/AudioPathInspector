@@ -17,6 +17,7 @@ import com.yooshastan.audiopath.data.DiagnosticBaseline
 import com.yooshastan.audiopath.data.DiagnosticBaselineStore
 import com.yooshastan.audiopath.data.HardwareInventory
 import com.yooshastan.audiopath.data.HardwareReport
+import com.yooshastan.audiopath.data.RootTinymixCollector
 import com.yooshastan.audiopath.data.AudioInspector
 import com.yooshastan.audiopath.data.Snapshot
 import com.yooshastan.audiopath.data.TestTone
@@ -34,6 +35,8 @@ class MainActivity : ComponentActivity() {
     private var snapshot by mutableStateOf<Snapshot?>(null)
     private var access by mutableStateOf<AccessState>(AccessState.Offline)
     private var rawDump by mutableStateOf("")
+    private var rootDump by mutableStateOf("")
+    private var rootScanning by mutableStateOf(false)
     private var toneResult by mutableStateOf("No test tone played")
     private var status by mutableStateOf("")
     private var collecting by mutableStateOf(false)
@@ -64,17 +67,20 @@ class MainActivity : ComponentActivity() {
                 snapshot = snapshot,
                 access = access,
                 toneResult = toneResult,
-                rawDump = rawDump,
+                rawDump = combinedReport(),
+                rootReport = rootDump,
+                rootScanning = rootScanning,
                 baseline = baseline,
                 status = status,
                 collecting = collecting,
                 playing = playing,
                 onRefresh = { refresh() },
                 onPermission = { shizuku.requestPermission() },
-                onCollect = { collecting = true; status = "Starting Shizuku collector…"; shizuku.collect() },
+                onCollect = { rootDump = ""; collecting = true; status = "Starting Shizuku collector…"; shizuku.collect() },
+                onRootCollect = { scanRootTinymix() },
                 onPlayTone = { playTone() },
                 onSharePublic = { share("Audio Path Inspector report", snapshot?.asJson() ?: "No data") },
-                onShareRaw = { if (rawDump.isNotBlank()) share("Audio Path Inspector privileged report", rawDump) },
+                onShareRaw = { if (combinedReport().isNotBlank()) share("Audio Path Inspector privileged report", combinedReport()) },
                 onSaveBaseline = { saveBaseline() },
                 onClearBaseline = { clearBaseline() }
             )
@@ -82,8 +88,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun saveBaseline() {
-        val entries = HardwareInventory.collect(HardwareReport.parse(rawDump))
-        if (rawDump.isBlank() || entries.isEmpty()) { status = "Collect a Shizuku hardware report first"; return }
+        val entries = HardwareInventory.collect(HardwareReport.parse(combinedReport()))
+        if (combinedReport().isBlank() || entries.isEmpty()) { status = "Collect a Shizuku or root hardware report first"; return }
         runCatching { baselineStore.save(snapshot?.model ?: "Unknown device", entries) }
             .onSuccess { baseline = it; status = "Saved local hardware baseline" }
             .onFailure { status = "Baseline save failed: ${it.message}" }
@@ -94,6 +100,26 @@ class MainActivity : ComponentActivity() {
             .onSuccess { baseline = null; status = "Local baseline cleared" }
             .onFailure { status = "Could not clear baseline: ${it.message}" }
     }
+
+    /** A root grant is never requested until the user confirms the dialog in Hardware. */
+    private fun scanRootTinymix() {
+        if (rootScanning || collecting) return
+        rootScanning = true
+        status = "Requesting read-only root access from your root manager…"
+        thread(name = "tinymix-root-scan", isDaemon = true) {
+            val result = runCatching { RootTinymixCollector.collect() }
+                .getOrElse { "=== TINYMIX: Root mixer controls ===\nStatus: ERROR\n${it.message}" }
+            runOnUiThread {
+                rootDump = result
+                rootScanning = false
+                val state = HardwareReport.parse(result).firstOrNull()?.status ?: "UNKNOWN"
+                status = "Root Tinymix scan: $state"
+            }
+        }
+    }
+
+    private fun combinedReport(): String = listOf(rawDump, rootDump)
+        .filter { it.isNotBlank() }.joinToString("\n\n")
 
     private fun refresh() {
         snapshot = inspector.snapshot()

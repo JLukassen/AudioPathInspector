@@ -42,3 +42,18 @@ Check Pixel 6 Pro, Pixel 8a and Samsung A36 (Android 15/16 as applicable). On ea
 - [ ] Clear the baseline, verify app-private snapshot is deleted.
 - [ ] Check that absent or denied HAL/ALSA values are shown as inaccessible, not invented.
 - [ ] Verify no device-specific private information is saved inadvertently in indexed values before sharing reports.
+
+## 0.4 Root-assisted Tinymix integration
+
+- [ ] APatch Pixel 8a with Shizuku ADB UID 2000: Hardware → root scan prompts for explicit app confirmation, then the root manager prompts for authorization.
+- [ ] Cancel root confirmation: no `su` process is started.
+- [ ] Deny root in the root manager: no app crash, status/error shown, no fake mixer controls.
+- [ ] Stock Samsung A36 without root: root scan fails safely, Shizuku diagnostics continue to work.
+- [ ] With root granted but Tinymix missing: NOT_FOUND, no fabricated control list.
+- [ ] With Tinymix installed: card 0 controls appear; unavailable cards 1–3 show their individual failures without crashing.
+- [ ] Search a real control name; save a baseline; rescan and compare entries labeled MIXER_REPORTED.
+- [ ] Start a new Shizuku scan: stale root results are cleared.
+- [ ] Compare with manually collected (read-only) `su -c 'tinymix -D 0'` and check that no mixer/volume values changed.
+- [ ] Verify no user-provided text is ever inserted into a privileged shell command.
+- [ ] Check 25-second timeout and bounded output on a device with many controls.
+- [ ] Confirm GitHub Actions debug build and on-device APK install before merging.
