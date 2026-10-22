@@ -15,368 +15,38 @@ object RootTinymixCollector {
 
     // Fixed script; no values, card IDs or paths are interpolated from user/device data.
     private val ROOT_SCRIPT = """
-uid=${'(/system/bin/id -u 2>/dev/null)
-if [ "$uid" != "0" ]; then
+uid=${'$'}(/system/bin/id -u 2>/dev/null)
+if [ "${'$'}uid" != "0" ]; then
   echo '__API_STATUS__:ROOT_DENIED'
   exit 41
 fi
 bin=''
 for candidate in /system/bin/tinymix /vendor/bin/tinymix /system/vendor/bin/tinymix /system/xbin/tinymix; do
-  if [ -x "$candidate" ]; then bin="$candidate"; break; fi
+  if [ -x "${'$'}candidate" ]; then bin="${'$'}candidate"; break; fi
 done
-if [ -z "$bin" ]; then
+if [ -z "${'$'}bin" ]; then
   echo '__API_STATUS__:MISSING_BINARY'
   exit 42
 fi
-printf 'Executable: %s\n' "$bin"
+printf 'Executable: %s\n' "${'$'}bin"
 count=0
 for card in 0 1 2 3; do
-  printf '\n--- CARD %s ---\n' "$card"
-  "$bin" -D "$card"
-  rc=$?
-  if [ "$rc" -ne 0 ]; then
+  printf '\n--- CARD %s ---\n' "${'$'}card"
+  "${'$'}bin" -D "${'$'}card"
+  rc=${'$'}?
+  if [ "${'$'}rc" -ne 0 ]; then
     echo '[Legacy read-only listing failed; trying contents syntax]'
-    "$bin" -D "$card" contents
-    rc=$?
+    "${'$'}bin" -D "${'$'}card" contents
+    rc=${'$'}?
   fi
-  if [ "$rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "$card"
-    count=$((count + 1))
+  if [ "${'$'}rc" -eq 0 ]; then
+    printf '__API_CARD_OK__:%s\n' "${'$'}card"
+    count=${'$'}((count + 1))
   else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
+    printf '[Card %s unavailable (exit %s)]\n' "${'$'}card" "${'$'}rc"
   fi
 done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}(/system/bin/id -u 2>/dev/null)
-if [ "${'uid" != "0" ]; then
-  echo '__API_STATUS__:ROOT_DENIED'
-  exit 41
-fi
-bin=''
-for candidate in /system/bin/tinymix /vendor/bin/tinymix /system/vendor/bin/tinymix /system/xbin/tinymix; do
-  if [ -x "$candidate" ]; then bin="$candidate"; break; fi
-done
-if [ -z "$bin" ]; then
-  echo '__API_STATUS__:MISSING_BINARY'
-  exit 42
-fi
-printf 'Executable: %s\n' "$bin"
-count=0
-for card in 0 1 2 3; do
-  printf '\n--- CARD %s ---\n' "$card"
-  "$bin" -D "$card"
-  rc=$?
-  if [ "$rc" -ne 0 ]; then
-    echo '[Legacy read-only listing failed; trying contents syntax]'
-    "$bin" -D "$card" contents
-    rc=$?
-  fi
-  if [ "$rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "$card"
-    count=$((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}uid" != "0" ]; then
-  echo '__API_STATUS__:ROOT_DENIED'
-  exit 41
-fi
-bin=''
-for candidate in /system/bin/tinymix /vendor/bin/tinymix /system/vendor/bin/tinymix /system/xbin/tinymix; do
-  if [ -x "${'candidate" ]; then bin="$candidate"; break; fi
-done
-if [ -z "$bin" ]; then
-  echo '__API_STATUS__:MISSING_BINARY'
-  exit 42
-fi
-printf 'Executable: %s\n' "$bin"
-count=0
-for card in 0 1 2 3; do
-  printf '\n--- CARD %s ---\n' "$card"
-  "$bin" -D "$card"
-  rc=$?
-  if [ "$rc" -ne 0 ]; then
-    echo '[Legacy read-only listing failed; trying contents syntax]'
-    "$bin" -D "$card" contents
-    rc=$?
-  fi
-  if [ "$rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "$card"
-    count=$((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}candidate" ]; then bin="${'candidate"; break; fi
-done
-if [ -z "$bin" ]; then
-  echo '__API_STATUS__:MISSING_BINARY'
-  exit 42
-fi
-printf 'Executable: %s\n' "$bin"
-count=0
-for card in 0 1 2 3; do
-  printf '\n--- CARD %s ---\n' "$card"
-  "$bin" -D "$card"
-  rc=$?
-  if [ "$rc" -ne 0 ]; then
-    echo '[Legacy read-only listing failed; trying contents syntax]'
-    "$bin" -D "$card" contents
-    rc=$?
-  fi
-  if [ "$rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "$card"
-    count=$((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}candidate"; break; fi
-done
-if [ -z "${'bin" ]; then
-  echo '__API_STATUS__:MISSING_BINARY'
-  exit 42
-fi
-printf 'Executable: %s\n' "$bin"
-count=0
-for card in 0 1 2 3; do
-  printf '\n--- CARD %s ---\n' "$card"
-  "$bin" -D "$card"
-  rc=$?
-  if [ "$rc" -ne 0 ]; then
-    echo '[Legacy read-only listing failed; trying contents syntax]'
-    "$bin" -D "$card" contents
-    rc=$?
-  fi
-  if [ "$rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "$card"
-    count=$((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}bin" ]; then
-  echo '__API_STATUS__:MISSING_BINARY'
-  exit 42
-fi
-printf 'Executable: %s\n' "${'bin"
-count=0
-for card in 0 1 2 3; do
-  printf '\n--- CARD %s ---\n' "$card"
-  "$bin" -D "$card"
-  rc=$?
-  if [ "$rc" -ne 0 ]; then
-    echo '[Legacy read-only listing failed; trying contents syntax]'
-    "$bin" -D "$card" contents
-    rc=$?
-  fi
-  if [ "$rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "$card"
-    count=$((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}bin"
-count=0
-for card in 0 1 2 3; do
-  printf '\n--- CARD %s ---\n' "${'card"
-  "$bin" -D "$card"
-  rc=$?
-  if [ "$rc" -ne 0 ]; then
-    echo '[Legacy read-only listing failed; trying contents syntax]'
-    "$bin" -D "$card" contents
-    rc=$?
-  fi
-  if [ "$rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "$card"
-    count=$((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}card"
-  "${'bin" -D "$card"
-  rc=$?
-  if [ "$rc" -ne 0 ]; then
-    echo '[Legacy read-only listing failed; trying contents syntax]'
-    "$bin" -D "$card" contents
-    rc=$?
-  fi
-  if [ "$rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "$card"
-    count=$((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}bin" -D "${'card"
-  rc=$?
-  if [ "$rc" -ne 0 ]; then
-    echo '[Legacy read-only listing failed; trying contents syntax]'
-    "$bin" -D "$card" contents
-    rc=$?
-  fi
-  if [ "$rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "$card"
-    count=$((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}card"
-  rc=${'?
-  if [ "$rc" -ne 0 ]; then
-    echo '[Legacy read-only listing failed; trying contents syntax]'
-    "$bin" -D "$card" contents
-    rc=$?
-  fi
-  if [ "$rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "$card"
-    count=$((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}?
-  if [ "${'rc" -ne 0 ]; then
-    echo '[Legacy read-only listing failed; trying contents syntax]'
-    "$bin" -D "$card" contents
-    rc=$?
-  fi
-  if [ "$rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "$card"
-    count=$((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}rc" -ne 0 ]; then
-    echo '[Legacy read-only listing failed; trying contents syntax]'
-    "${'bin" -D "$card" contents
-    rc=$?
-  fi
-  if [ "$rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "$card"
-    count=$((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}bin" -D "${'card" contents
-    rc=$?
-  fi
-  if [ "$rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "$card"
-    count=$((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}card" contents
-    rc=${'?
-  fi
-  if [ "$rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "$card"
-    count=$((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}?
-  fi
-  if [ "${'rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "$card"
-    count=$((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}rc" -eq 0 ]; then
-    printf '__API_CARD_OK__:%s\n' "${'card"
-    count=$((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}card"
-    count=${'((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "$card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}((count + 1))
-  else
-    printf '[Card %s unavailable (exit %s)]\n' "${'card" "$rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}card" "${'rc"
-  fi
-done
-if [ "$count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}rc"
-  fi
-done
-if [ "${'count" -eq 0 ]; then
-  echo '__API_STATUS__:NO_MIXER'
-  exit 43
-fi}count" -eq 0 ]; then
+if [ "${'$'}count" -eq 0 ]; then
   echo '__API_STATUS__:NO_MIXER'
   exit 43
 fi
