@@ -12,7 +12,7 @@ data class InventoryEntry(
 
 /** Avoid storing huge dumps; only recognized properties and short diagnostic facts are indexed. */
 object HardwareInventory {
-    private const val MAX_PER_SECTION = 90
+    private const val MAX_PER_SECTION = 260
     private const val MAX_VALUE = 400
 
     fun collect(sections: List<HardwareSection>): List<InventoryEntry> {
@@ -92,8 +92,23 @@ object HardwareInventory {
                         if (properties.isNotBlank()) add("xml-$file-${lineIndex++}-$tag", "$tag configuration", properties, "CONFIGURED", file)
                     }
                 }
-                section.title == "TINYMIX: Controls" -> details.filter { it.matches(Regex("^\\s*\\d+\\s+.*")) }
-                    .take(65).forEachIndexed { index, line -> add("control-$index", "Tinymix control ${index+1}", line, "REPORTED") }
+                section.title.startsWith("TINYMIX:") -> {
+                    // Stable card + control-index keys. Output formats vary by TinyALSA version.
+                    var card = "0"
+                    val cardHeader = Regex("^--- CARD ([0-3]) ---$")
+                    val control = Regex("^\\s*(\\d+)\\s+(\\S.+)$")
+                    for (line in details) {
+                        val header = cardHeader.matchEntire(line.trim())
+                        if (header != null) { card = header.groupValues[1]; continue }
+                        if (section.status != "OK") continue
+                        val match = control.matchEntire(line) ?: continue
+                        val index = match.groupValues[1]
+                        val value = match.groupValues[2].trim()
+                        if (value.isBlank()) continue
+                        add("card-$card-ctl-$index", "Card $card · control $index", value,
+                            "MIXER_REPORTED", "tinymix card $card")
+                    }
+                }
             }
         }
         return all.values.toList()
