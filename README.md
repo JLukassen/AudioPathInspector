@@ -2,7 +2,7 @@
 
 ![Audio Path Inspector icon](assets/branding/play-store-icon-512.png)
 
-**Yoo Shastan · Android audio diagnostics · 0.2.0-dev**
+**Yoo Shastan · Android audio diagnostics · 0.3.0-dev**
 
 A **read-only visual audio diagnostics app** for Android, started for the independent Yoo Shastan Android project line. This is a **starter source project**, not a tested APK or a finished audio analyzer.
 
@@ -21,17 +21,20 @@ A **read-only visual audio diagnostics app** for Android, started for the indepe
 - Optional Shizuku permission/access state. With permission, its **UserService** runs fixed, read-only commands as shell/root: `dumpsys media.audio_flinger`, `dumpsys media.audio_policy`, `service list`, `lshal` (if available), and `getprop`; it also tries bounded reads of ALSA procfs nodes, vendor audio XML, and (only with UID 0) `tinymix` with **no arguments**, which enumerates controls. No mixer writes. Commands time out, reads are bounded, and report sections include a status (OK, NOT_FOUND, PERMISSION_DENIED, etc.).
 - User-triggered report sharing; no automatic network transmission, analytics, or background scanning.
 
-## Publish as a separate GitHub repository
+## Publish to your existing GitHub repository
 
-The connected GitHub integration could not create a new repository automatically, so this source package includes `scripts/publish-to-github.sh` for your own authenticated Fedora machine. No remote repository has been created by packaging this source.
+The remote repository `JLukassen/AudioPathInspector` has been created. This project ZIP includes all source code and launcher assets; the remote may still be empty. Run `bash scripts/publish-to-github.sh` from the extracted project folder after `gh auth login` to publish to that exact existing repository. The script checks whether the remote already has branches and refuses to overwrite existing history. It does not change repository visibility.
 
-1. Install the GitHub CLI (`sudo dnf install gh`) and authenticate once (`gh auth login`).
-2. Open a terminal in the `AudioPathInspector` project directory.
-3. Run `bash scripts/publish-to-github.sh --private` to create `JLukassen/AudioPathInspector` and push the source as a **private** repository, or use `--public` if you want it visible immediately.
+To update a repository already populated with an earlier version, clone the remote first, copy the new project files into the clone (preserving `.git`), then review `git diff`, commit, and push normally.
 
-The script only creates the Git repository and first commit if required, refuses an existing `origin` remote, and never includes Android's ignored `local.properties`, build artifacts, or signing keys. If the remote already exists, use normal `git add`, `git commit`, and `git push` instead.
+The project is packaged without a Gradle wrapper JAR. The supplied GitHub Actions workflow uses a pinned Gradle 8.13 installation and Android SDK 36. It is a first-build check, not proof of a tested app or release-ready binary.
 
-The repository is packaged without a Gradle wrapper JAR. The supplied GitHub Actions workflow uses a pinned Gradle 8.13 installation and Android SDK 36. It is a first-build check, not proof of a tested app or release-ready binary.
+## Version 0.3 additions
+
+- **Hardware search:** Indexed read-only facts from ALSA `/proc/asound`, VINTF declarations, service listing, selected vendor XML and audio properties. Each entry retains its source and evidence label; inaccessible data is never invented.
+- **Compare tab:** Save one local, user-triggered baseline of extracted facts, scan again after changing headphones or settings, and inspect ADDED / REMOVED / CHANGED values.
+- **Read-only scope:** Root-only Tinymix listing is optional; no mixer writes or modifications. Raw privileged dumps aren't persisted in the baseline.
+- **Limitations:** No conclusive DAC bit-perfect verification or end-to-end HAL/PCM route tracing; same hardware may show different diagnostic visibility on Samsung and Pixel devices.
 
 ## Open in Android Studio
 

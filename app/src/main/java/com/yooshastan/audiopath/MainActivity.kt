@@ -13,6 +13,10 @@ import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.yooshastan.audiopath.data.DiagnosticBaseline
+import com.yooshastan.audiopath.data.DiagnosticBaselineStore
+import com.yooshastan.audiopath.data.HardwareInventory
+import com.yooshastan.audiopath.data.HardwareReport
 import com.yooshastan.audiopath.data.AudioInspector
 import com.yooshastan.audiopath.data.Snapshot
 import com.yooshastan.audiopath.data.TestTone
@@ -25,6 +29,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var inspector: AudioInspector
     private lateinit var manager: AudioManager
     private lateinit var shizuku: ShizukuBridge
+    private lateinit var baselineStore: DiagnosticBaselineStore
+    private var baseline by mutableStateOf<DiagnosticBaseline?>(null)
     private var snapshot by mutableStateOf<Snapshot?>(null)
     private var access by mutableStateOf<AccessState>(AccessState.Offline)
     private var rawDump by mutableStateOf("")
@@ -41,6 +47,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         inspector = AudioInspector(this)
+        baselineStore = DiagnosticBaselineStore(this)
+        baseline = baselineStore.load()
         manager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         snapshot = inspector.snapshot()
         shizuku = ShizukuBridge(
@@ -57,6 +65,7 @@ class MainActivity : ComponentActivity() {
                 access = access,
                 toneResult = toneResult,
                 rawDump = rawDump,
+                baseline = baseline,
                 status = status,
                 collecting = collecting,
                 playing = playing,
@@ -65,9 +74,25 @@ class MainActivity : ComponentActivity() {
                 onCollect = { collecting = true; status = "Starting Shizuku collector…"; shizuku.collect() },
                 onPlayTone = { playTone() },
                 onSharePublic = { share("Audio Path Inspector report", snapshot?.asJson() ?: "No data") },
-                onShareRaw = { if (rawDump.isNotBlank()) share("Audio Path Inspector privileged report", rawDump) }
+                onShareRaw = { if (rawDump.isNotBlank()) share("Audio Path Inspector privileged report", rawDump) },
+                onSaveBaseline = { saveBaseline() },
+                onClearBaseline = { clearBaseline() }
             )
         }
+    }
+
+    private fun saveBaseline() {
+        val entries = HardwareInventory.collect(HardwareReport.parse(rawDump))
+        if (rawDump.isBlank() || entries.isEmpty()) { status = "Collect a Shizuku hardware report first"; return }
+        runCatching { baselineStore.save(snapshot?.model ?: "Unknown device", entries) }
+            .onSuccess { baseline = it; status = "Saved local hardware baseline" }
+            .onFailure { status = "Baseline save failed: ${it.message}" }
+    }
+
+    private fun clearBaseline() {
+        runCatching { baselineStore.clear() }
+            .onSuccess { baseline = null; status = "Local baseline cleared" }
+            .onFailure { status = "Could not clear baseline: ${it.message}" }
     }
 
     private fun refresh() {

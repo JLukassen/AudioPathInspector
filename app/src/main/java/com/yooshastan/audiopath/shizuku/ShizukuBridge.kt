@@ -66,7 +66,7 @@ class ShizukuBridge(
             .daemon(false)
             .processNameSuffix("audio_diag")
             .tag("read_only_audio_diag")
-            .version(2)
+            .version(3)
         val conn = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
                 if (service == null) {

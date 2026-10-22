@@ -18,7 +18,7 @@ import kotlin.system.exitProcess
  */
 class PrivilegedAudioService : IAudioDiagnostics.Stub() {
     override fun collectSnapshot(): String = buildString {
-        appendLine("Audio Path Inspector — hardware diagnostics 0.2")
+        appendLine("Audio Path Inspector — hardware diagnostics 0.3")
         appendLine("Executing UID: ${Process.myUid()} (2000 = ADB shell; 0 = root)")
         appendLine("Snapshot is read-only. A HAL/config file does not prove a live DSP or DAC setting.")
         appendLine("Review raw data before sharing: vendor paths and service logs may identify your device.")
@@ -33,6 +33,7 @@ class PrivilegedAudioService : IAudioDiagnostics.Stub() {
 
         addSection("HAL: Audio services", audioServices())
         addSection("HAL: Legacy HIDL services", legacyHalServices())
+        addSection("HAL: VINTF audio declarations", vintfAudioDeclarations())
         addSection("HAL: Audio properties", audioProperties())
         addSection("VENDOR: Audio policy and effects", vendorFiles("policy"))
         addSection("VENDOR: Mixer configurations", vendorFiles("mixer"))
@@ -165,6 +166,46 @@ class PrivilegedAudioService : IAudioDiagnostics.Stub() {
             .take(45).toList()
         return if (audioLines.isEmpty()) Probe("EMPTY", "No audio HIDL services listed")
         else Probe("OK", audioLines.joinToString("\n") + "\n[Legacy HIDL service presence does not prove active routing]")
+    }
+
+    /** VINTF manifests describe implementations, not their live signal processing state. */
+    private fun vintfAudioDeclarations(): Probe {
+        val roots = listOf("/vendor/etc/vintf", "/odm/etc/vintf", "/system/etc/vintf")
+        val paths = mutableListOf<File>()
+        for (root in roots) {
+            val f = File(root, "manifest.xml")
+            if (f.exists()) paths.add(f)
+            val fragments = File(root, "manifest").listFiles().orEmpty()
+            paths.addAll(fragments.filter { it.isFile && it.name.endsWith(".xml") }.take(30))
+        }
+        if (paths.isEmpty()) return Probe("NOT_FOUND", "No inspected VINTF manifests were visible")
+        var ok = 0
+        var denied = 0
+        val result = StringBuilder()
+        val matcher = Regex("audio|sound_trigger|soundtrigger", RegexOption.IGNORE_CASE)
+        for (file in paths.take(36)) {
+            val data = readFile(file.path, 60_000)
+            if (data.status == "PERMISSION_DENIED") { denied++; result.appendLine("${file.path}: PERMISSION_DENIED"); continue }
+            if (data.status != "OK") continue
+            ok++
+            // Keep adjacent context around audio names. Full manifest may contain unrelated identifiers.
+            val lines = data.output.lines()
+            val matched = lines.indices.filter { matcher.containsMatchIn(lines[it]) }.take(28)
+            if (matched.isEmpty()) continue
+            result.appendLine("--- ${file.path} [OK] ---")
+            for (index in matched) {
+                val from = maxOf(0, index - 2)
+                val to = minOf(lines.lastIndex, index + 3)
+                for (pos in from..to) result.appendLine(lines[pos].take(260))
+                result.appendLine("…")
+            }
+        }
+        val status = when {
+            ok > 0 -> "OK"
+            denied > 0 -> "PERMISSION_DENIED"
+            else -> "EMPTY"
+        }
+        return Probe(status, result.toString().ifBlank { "No audio HAL declarations found in readable manifest fragments" })
     }
 
     private fun audioProperties(): Probe {

@@ -26,6 +26,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -44,6 +45,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yooshastan.audiopath.data.AudioFact
+import com.yooshastan.audiopath.data.DiagnosticBaseline
+import com.yooshastan.audiopath.data.BaselineDiff
+import com.yooshastan.audiopath.data.HardwareInventory
+import com.yooshastan.audiopath.data.InventoryEntry
 import com.yooshastan.audiopath.data.DeviceFacts
 import com.yooshastan.audiopath.data.Evidence
 import com.yooshastan.audiopath.data.HardwareReport
@@ -64,12 +69,15 @@ private val Amber = Color(0xFFFFC586)
 @Composable
 fun InspectorScreen(
     snapshot: Snapshot?, access: AccessState, toneResult: String, rawDump: String,
+    baseline: DiagnosticBaseline?,
     status: String, collecting: Boolean, playing: Boolean,
     onRefresh: () -> Unit, onPermission: () -> Unit, onCollect: () -> Unit,
-    onPlayTone: () -> Unit, onSharePublic: () -> Unit, onShareRaw: () -> Unit
+    onPlayTone: () -> Unit, onSharePublic: () -> Unit, onShareRaw: () -> Unit,
+    onSaveBaseline: () -> Unit, onClearBaseline: () -> Unit
 ) {
     var selected by remember { mutableStateOf(0) }
     val hardware = remember(rawDump) { HardwareReport.parse(rawDump) }
+    val inventory = remember(hardware) { HardwareInventory.collect(hardware) }
     MaterialTheme(colorScheme = darkColorScheme(
         background = Ink, surface = Panel, primary = Seafoam,
         onBackground = LightText, onSurface = LightText, onPrimary = Ink
@@ -108,7 +116,7 @@ fun InspectorScreen(
                 }
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Signal path", "Devices", "Settings", "Hardware", "Diagnostics").forEachIndexed { index, title ->
+                    listOf("Signal path", "Devices", "Settings", "Hardware", "Compare", "Diagnostics").forEachIndexed { index, title ->
                         val active = selected == index
                         val bg = if (active) Seafoam else Panel
                         Surface(shape = RoundedCornerShape(25.dp), color = bg,
@@ -123,8 +131,9 @@ fun InspectorScreen(
                     0 -> PathPanel(snapshot, rawDump.isNotBlank(), hardware, toneResult, playing, onPlayTone)
                     1 -> DevicesPanel(snapshot)
                     2 -> SettingsPanel(snapshot)
-                    3 -> HardwarePanel(access, hardware, collecting, onPermission, onCollect)
-                    4 -> DiagnosticPanel(snapshot, access, status, collecting, rawDump,
+                    3 -> HardwarePanel(access, hardware, inventory, collecting, onPermission, onCollect)
+                    4 -> ComparePanel(snapshot, rawDump, inventory, baseline, status, onSaveBaseline, onClearBaseline)
+                    5 -> DiagnosticPanel(snapshot, access, status, collecting, rawDump,
                         onPermission, onCollect, onSharePublic, onShareRaw)
                 }
                 HorizontalDivider(color = Border)
@@ -269,9 +278,10 @@ private fun SettingCard(fact: AudioFact) {
 
 @Composable
 private fun HardwarePanel(
-    access: AccessState, sections: List<HardwareSection>, collecting: Boolean,
+    access: AccessState, sections: List<HardwareSection>, inventory: List<InventoryEntry>, collecting: Boolean,
     onPermission: () -> Unit, onCollect: () -> Unit
 ) {
+    var query by remember { mutableStateOf("") }
     SectionTitle("HARDWARE INSPECTION", "ALSA and vendor HAL")
     Text("Read-only discovery via Shizuku. Available metadata is not proof of the DAC's actual output sample rate or DSP signal path.",
         fontSize = 12.sp, color = DimText)
@@ -290,14 +300,26 @@ private fun HardwarePanel(
     if (sections.isEmpty()) {
         PanelCard {
             Text("No hardware report yet", fontWeight = FontWeight.SemiBold)
-            Text("A new scan checks /proc/asound, vendor audio XML, registered HAL services, and (root only) Tinymix controls.",
+            Text("A new scan checks /proc/asound, vendor audio XML, VINTF declarations, registered HAL services and optional root Tinymix.",
                 color = DimText, fontSize = 12.sp)
         }
     } else {
         val accessible = sections.count { it.status == "OK" }
-        Text("$accessible of ${sections.size} sources readable. Tap any source for details.",
+        Text("$accessible of ${sections.size} sources readable; ${inventory.size} indexed facts. Tap any source for details.",
             color = DimText, fontSize = 12.sp)
-        sections.forEach { entry -> HardwareSourceCard(entry) }
+        OutlinedTextField(value = query, onValueChange = { query = it.take(120) },
+            label = { Text("Search hardware settings") }, singleLine = true,
+            modifier = Modifier.fillMaxWidth())
+        val matching = inventory.filter { item -> query.isBlank() ||
+            listOf(item.group, item.label, item.value, item.source).any { it.contains(query, ignoreCase = true) }
+        }
+        if (query.isNotBlank()) {
+            Text("${matching.size} indexed matches", color = DimText, fontSize = 12.sp)
+            matching.take(60).forEach { entry -> InventoryFactCard(entry) }
+            if (matching.size > 60) Text("Showing the first 60 matches; refine your search.", color = Amber, fontSize = 11.sp)
+        } else {
+            sections.forEach { entry -> HardwareSourceCard(entry) }
+        }
     }
 }
 
@@ -321,6 +343,56 @@ private fun HardwareSourceCard(entry: HardwareSection) {
                 fontSize = 10.sp, lineHeight = 15.sp)
         }
     }
+}
+
+@Composable
+private fun InventoryFactCard(entry: InventoryEntry) {
+    PanelCard {
+        Text(entry.group, color = Seafoam, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+        Text(entry.label, color = LightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text(entry.value, color = DimText, fontSize = 12.sp, lineHeight = 17.sp)
+        Text("${entry.evidence} · ${entry.source}", color = Amber, fontSize = 10.sp)
+    }
+}
+
+@Composable
+private fun ComparePanel(snapshot: Snapshot?, rawDump: String, inventory: List<InventoryEntry>,
+    baseline: DiagnosticBaseline?, status: String, onSaveBaseline: () -> Unit, onClearBaseline: () -> Unit
+) {
+    SectionTitle("CONFIGURATION COMPARISON", "Local snapshot baseline")
+    Text("Capture a baseline before connecting a DAC, changing an output, or rebooting. After the next Shizuku scan, compare known values; this does not certify hardware routing.",
+        color = DimText, fontSize = 12.sp)
+    PanelCard {
+        Text("BASELINE", color = Seafoam, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+        Text(if (baseline == null) "No baseline saved" else "${baseline.model} · ${baseline.entries.size} indexed facts",
+            color = LightText, fontSize = 14.sp)
+        if (baseline != null) {
+            Text(DateFormat.getDateTimeInstance().format(Date(baseline.createdAt)), color = DimText, fontSize = 11.sp)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(onClick = onSaveBaseline, enabled = rawDump.isNotBlank() && inventory.isNotEmpty()) { Text("Save baseline") }
+            if (baseline != null) OutlinedButton(onClick = onClearBaseline) { Text("Clear") }
+        }
+        Text("Saved locally in private app storage. Only indexed facts are saved, never the full raw dumpsys output.", color = DimText, fontSize = 11.sp)
+    }
+    if (baseline != null && rawDump.isNotBlank()) {
+        val changes = remember(inventory, baseline) { BaselineDiff.compare(baseline.entries, inventory) }
+        Text("${changes.size} differences", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        if (snapshot?.model != baseline.model) {
+            Text("Different device from baseline; hardware differences may be expected.", color = Amber, fontSize = 12.sp)
+        }
+        if (changes.isEmpty()) Text("No indexed settings changed. Hardware output may still differ.", color = DimText, fontSize = 12.sp)
+        changes.take(75).forEach { change -> PanelCard {
+            Text("${change.kind} · ${change.group}", color = Amber, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            Text(change.label, color = LightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            if (change.before != null) Text("Before: ${change.before}", color = DimText, fontSize = 11.sp)
+            if (change.after != null) Text("After: ${change.after}", color = Seafoam, fontSize = 11.sp)
+        } }
+        if (changes.size > 75) Text("Displaying 75 of ${changes.size} changes.", color = DimText, fontSize = 11.sp)
+    } else if (baseline != null) {
+        Text("Run a hardware scan to compare against the stored baseline.", color = DimText)
+    }
+    if (status.isNotBlank()) Text(status, color = DimText, fontSize = 11.sp)
 }
 
 @Composable

@@ -31,3 +31,14 @@ Check Pixel 6 Pro, Pixel 8a and Samsung A36 (Android 15/16 as applicable). On ea
 5. If and only if a root-running Shizuku is available, inspect **Tinymix: Controls** with default enumeration. Never change controls or set gain values.
 6. Validate all 'Inspect' expand/collapse controls, sharing raw report only after checking privacy; verify the full report stays under Binder's transaction size limit.
 7. Restart Shizuku; verify scans fail gracefully. Denied access must not crash or hang the app.
+
+
+## 0.3 Search / baseline tests
+
+- [ ] Search for `audio`, `rate`, `pcm`, `codec`, and a known device name; check source/evidence labels.
+- [ ] Scan with Shizuku and save a baseline. Reopen app and confirm baseline persists without a raw privileged dump.
+- [ ] Disconnect a DAC, rescan, and inspect changes; change the DAC back and compare again.
+- [ ] Validate baseline saved on a Pixel is labeled as a different device when compared on a Samsung.
+- [ ] Clear the baseline, verify app-private snapshot is deleted.
+- [ ] Check that absent or denied HAL/ALSA values are shown as inaccessible, not invented.
+- [ ] Verify no device-specific private information is saved inadvertently in indexed values before sharing reports.
