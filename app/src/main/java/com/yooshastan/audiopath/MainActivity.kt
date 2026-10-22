@@ -89,7 +89,7 @@ class MainActivity : ComponentActivity() {
 
     private fun saveBaseline() {
         val entries = HardwareInventory.collect(HardwareReport.parse(combinedReport()))
-        if (combinedReport().isBlank() || entries.isEmpty()) { status = "Collect a Shizuku hardware report first"; return }
+        if (combinedReport().isBlank() || entries.isEmpty()) { status = "Collect a Shizuku or root hardware report first"; return }
         runCatching { baselineStore.save(snapshot?.model ?: "Unknown device", entries) }
             .onSuccess { baseline = it; status = "Saved local hardware baseline" }
             .onFailure { status = "Baseline save failed: ${it.message}" }
