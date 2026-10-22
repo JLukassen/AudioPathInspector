@@ -2,7 +2,7 @@
 
 ![Audio Path Inspector icon](assets/branding/play-store-icon-512.png)
 
-**Yoo Shastan · Android audio diagnostics · 0.3.0-dev**
+**Yoo Shastan · Android audio diagnostics · 0.4.0-dev**
 
 A **read-only visual audio diagnostics app** for Android, started for the independent Yoo Shastan Android project line. This is a **starter source project**, not a tested APK or a finished audio analyzer.
 
@@ -14,7 +14,7 @@ A **read-only visual audio diagnostics app** for Android, started for the indepe
 
 ## Included now
 
-- A Compose dashboard with five views: **Signal path**, **Devices**, **Settings**, **Hardware**, and **Diagnostics**.
+- A Compose dashboard with six views: **Signal path**, **Devices**, **Settings**, **Hardware**, and **Diagnostics**.
 - Actual Android `AudioManager` / `AudioDeviceInfo` collection of connected inputs/outputs, declared encodings, sample rates, channel counts, audio profiles and a few framework properties.
 - Refresh automatically when audio devices appear or disappear.
 - A **user-triggered quiet 750 Hz / 400 ms test tone** that reports the output device actually used by this app's own `AudioTrack` when Android reports it. This does **not** prove the media app's current route or the DAC's native stream format.
@@ -28,6 +28,15 @@ The remote repository `JLukassen/AudioPathInspector` has been created. This proj
 To update a repository already populated with an earlier version, clone the remote first, copy the new project files into the clone (preserving `.git`), then review `git diff`, commit, and push normally.
 
 The project is packaged without a Gradle wrapper JAR. The supplied GitHub Actions workflow uses a pinned Gradle 8.13 installation and Android SDK 36. It is a first-build check, not proof of a tested app or release-ready binary.
+
+## Version 0.4 — root-assisted Tinymix inspection
+
+- Hardware tab adds an **explicitly confirmed** read-only root scan using `su -c` with authorized APatch/Magisk-compatible root managers. This is separate from Shizuku and works when Shizuku runs as ADB shell UID 2000.
+- Only fixed executable paths are considered: `/system/bin/tinymix`, `/vendor/bin/tinymix`, `/system/vendor/bin/tinymix`, and `/system/xbin/tinymix`. Scan cards 0–3 with a read-only listing; when needed use the read-only `contents` syntax for newer TinyALSA versions.
+- **No root permission is requested automatically.** The user confirms the operation in the Hardware tab and the installed root manager decides whether to grant it.
+- No `tinymix set`, mixer writes, binary installation, SELinux changes, or permission modifications. Root results are bounded by time and output size, indexed as **MIXER_REPORTED** (not a verified end-to-end audio path), and available to existing search and comparison views.
+- Without root or when Tinymix is missing, the app displays an explicit error/status rather than inventing values. Users may optionally install appropriate third-party Tinymix components separately.
+- Root-assisted output may expose sensitive hardware labels; share reports only after review. Shizuku-only diagnostics remain available without root.
 
 ## Version 0.3 additions
 
